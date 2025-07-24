@@ -126,6 +126,7 @@ type HydraClient struct {
 	GrantTypes    []string               `json:"grant_types"`
 	RedirectURIs  []string               `json:"redirect_uris"`
 	ResponseTypes []string               `json:"response_types"`
+	TokenEndpoint string                 `json:"token_endpoint_auth_method"`
 	Scope         string                 `json:"scope"`
 	ClientName    string                 `json:"client_name"`
 	Metadata      map[string]interface{} `json:"metadata"`
@@ -176,6 +177,7 @@ func (ac *AuthController) CompleteOIDCConfiguration(c *gin.Context) {
 		GrantTypes:    grantTypes,
 		RedirectURIs:  req.TenantClient.RedirectURIs,
 		ResponseTypes: []string{"code"},
+		TokenEndpoint: "client_secret_post",
 		Scope:         strings.Join(scopes, " "),
 		ClientName:    req.TenantClient.ClientName,
 		Metadata: map[string]interface{}{
