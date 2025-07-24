@@ -31,7 +31,7 @@ func LoadConfig() *Config {
 	}
 
 	// Load individual database variables
-	dbName := getEnv("DB_NAME", "authsec")
+	dbName := getEnv("DB_NAME", "authfuck")
 	dbUser := getEnv("DB_USER", "authsec")
 	dbPassword := getEnv("DB_PASSWORD", "authsec")
 	dbHost := getEnv("DB_HOST", "localhost")

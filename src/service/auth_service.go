@@ -141,8 +141,8 @@ func (as *AuthService) ConfigureLocalAuth(c *gin.Context, req *dto.ConfigureLoca
 	// Convert to generic config request
 	configReq := &dto.CreateConfigRequest{
 		Name:       req.Name,
-		OrgID:      req.OrgID,
-		TenantID:   req.TenantID,
+		OrgID:      UUIDToString2(req.OrgID),
+		TenantID:   UUIDToString2(req.TenantID),
 		ConfigType: "local_auth",
 		ConfigFiles: map[string]interface{}{
 			"local_auth_config": req.LocalAuthConfig,
@@ -184,8 +184,8 @@ func (as *AuthService) ConfigureOAuthServer(c *gin.Context, req *dto.ConfigureOA
 
 	configReq := &dto.CreateConfigRequest{
 		Name:       req.Name,
-		OrgID:      req.OrgID,
-		TenantID:   req.TenantID,
+		OrgID:      UUIDToString2(req.OrgID),
+		TenantID:   UUIDToString2(req.TenantID),
 		ConfigType: "oauth_server",
 		ConfigFiles: map[string]interface{}{
 			"oauth_server_config": req.OAuthServerConfig,
@@ -205,8 +205,8 @@ func (as *AuthService) ConfigureWebAuthnMFA(c *gin.Context, req *dto.ConfigureWe
 
 	configReq := &dto.CreateConfigRequest{
 		Name:       req.Name,
-		OrgID:      req.OrgID,
-		TenantID:   req.TenantID,
+		OrgID:      UUIDToString2(req.OrgID),
+		TenantID:   UUIDToString2(req.TenantID),
 		ConfigType: "webauthn_mfa",
 		ConfigFiles: map[string]interface{}{
 			"webauthn_mfa_config": req.WebAuthnMFAConfig,
@@ -226,8 +226,8 @@ func (as *AuthService) ConfigureSAML2(c *gin.Context, req *dto.ConfigureSAML2Req
 
 	configReq := &dto.CreateConfigRequest{
 		Name:       req.Name,
-		OrgID:      req.OrgID,
-		TenantID:   req.TenantID,
+		OrgID:      UUIDToString2(req.OrgID),
+		TenantID:   UUIDToString2(req.TenantID),
 		ConfigType: "saml2",
 		ConfigFiles: map[string]interface{}{
 			"saml2_config": req.SAML2Config,
@@ -247,8 +247,8 @@ func (as *AuthService) ConfigureEntraSync(c *gin.Context, req *dto.ConfigureEntr
 
 	configReq := &dto.CreateConfigRequest{
 		Name:       req.Name,
-		OrgID:      req.OrgID,
-		TenantID:   req.TenantID,
+		OrgID:      UUIDToString2(req.OrgID),
+		TenantID:   UUIDToString2(req.TenantID),
 		ConfigType: "entra_sync",
 		ConfigFiles: map[string]interface{}{
 			"entra_sync_config": req.EntraSyncConfig,
@@ -268,8 +268,8 @@ func (as *AuthService) ConfigureADSync(c *gin.Context, req *dto.ConfigureADSyncR
 
 	configReq := &dto.CreateConfigRequest{
 		Name:       req.Name,
-		OrgID:      req.OrgID,
-		TenantID:   req.TenantID,
+		OrgID:      UUIDToString2(req.OrgID),
+		TenantID:   UUIDToString2(req.TenantID),
 		ConfigType: "ad_sync",
 		ConfigFiles: map[string]interface{}{
 			"ad_sync_config": req.ADSyncConfig,
@@ -372,14 +372,17 @@ func (as *AuthService) GetActiveConfigForTenant(c *gin.Context, tenantID, orgID 
 
 	return config.ToResponse(), nil
 }
+func UUIDToString2(id uuid.UUID) string {
+	return id.String()
+}
 
 // ActivateConfig activates a configuration and deactivates others of the same type in tenant database
 func (as *AuthService) ActivateConfig(c *gin.Context, req *dto.ActivateConfigRequest) (*dto.ConfigResponse, error) {
 	// First, get the configuration to be activated
 	getReq := &dto.GetConfigByIDRequest{
 		ID:       req.ID,
-		TenantID: req.TenantID,
-		OrgID:    req.OrgID,
+		TenantID: UUIDToString2(req.TenantID),
+		OrgID:    UUIDToString2(req.OrgID),
 	}
 
 	config, err := as.authRepo.GetConfigByID(c, getReq)
@@ -395,8 +398,8 @@ func (as *AuthService) ActivateConfig(c *gin.Context, req *dto.ActivateConfigReq
 	// Activate the requested configuration
 	updateReq := &dto.UpdateConfigRequest{
 		ID:        req.ID,
-		TenantID:  req.TenantID,
-		OrgID:     req.OrgID,
+		TenantID:  UUIDToString2(req.TenantID),
+		OrgID:     UUIDToString2(req.OrgID),
 		IsActive:  &[]bool{true}[0], // Helper to get pointer to true
 		UpdatedBy: req.UpdatedBy,
 	}
@@ -410,10 +413,10 @@ func (as *AuthService) validateCreateConfigRequest(req *dto.CreateConfigRequest)
 	if req.Name == "" {
 		return fmt.Errorf("configuration name is required")
 	}
-	if req.OrgID == uuid.Nil {
+	if req.OrgID == uuid.Nil.String() {
 		return fmt.Errorf("organization ID is required")
 	}
-	if req.TenantID == uuid.Nil {
+	if req.TenantID == uuid.Nil.String() {
 		return fmt.Errorf("tenant ID is required")
 	}
 	if req.ConfigType == "" {
@@ -439,10 +442,10 @@ func (as *AuthService) validateUpdateConfigRequest(req *dto.UpdateConfigRequest)
 	if req.ID == uuid.Nil {
 		return fmt.Errorf("configuration ID is required")
 	}
-	if req.TenantID == uuid.Nil {
+	if req.TenantID == uuid.Nil.String() {
 		return fmt.Errorf("tenant ID is required")
 	}
-	if req.OrgID == uuid.Nil {
+	if req.OrgID == uuid.Nil.String() {
 		return fmt.Errorf("organization ID is required")
 	}
 	return nil

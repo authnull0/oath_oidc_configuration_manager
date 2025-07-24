@@ -1,4 +1,4 @@
-// src/middlewares/tenant_middleware.go
+// src/middlewares/tenant_middleware.go - FIXED VERSION
 package middlewares
 
 import (
@@ -11,10 +11,32 @@ import (
 	models "oath_oidc_configuration_manager/src/models/dto"
 
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
+
+// Updated Tenant model to match your database schema
+type Tenant struct {
+	ID           string     `json:"id" gorm:"primary_key"`
+	TenantID     string     `json:"tenant_id"`
+	TenantDB     string     `json:"tenant_db"`
+	Email        string     `json:"email"`
+	Username     string     `json:"username"`
+	PasswordHash string     `json:"password_hash"`
+	Provider     string     `json:"provider" gorm:"default:local"`
+	ProviderID   string     `json:"provider_id"`
+	Name         string     `json:"name"`
+	Avatar       string     `json:"avatar"`
+	Source       string     `json:"source"`
+	Status       string     `json:"status"`
+	LastLogin    *time.Time `json:"last_login"`
+	CreatedAt    time.Time  `json:"created_at"`
+	UpdatedAt    time.Time  `json:"updated_at"`
+}
+
+func (Tenant) TableName() string {
+	return "tenants"
+}
 
 // TenantDBMiddleware extracts tenant info from request and sets up tenant database connection
 func TenantDBMiddleware() gin.HandlerFunc {
@@ -46,7 +68,7 @@ func TenantDBMiddleware() gin.HandlerFunc {
 		// Restore the request body for downstream handlers
 		c.Request.Body = &BodyReader{data: bodyBytes}
 
-		// Extract tenant_id and org_id
+		// Extract tenant_id and org_id as strings (not UUIDs)
 		tenantIDStr, tenantExists := requestBody["tenant_id"].(string)
 		orgIDStr, orgExists := requestBody["org_id"].(string)
 
@@ -58,23 +80,15 @@ func TenantDBMiddleware() gin.HandlerFunc {
 			return
 		}
 
-		// Validate UUIDs
-		tenantID, err := uuid.Parse(tenantIDStr)
-		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant_id format"})
-			c.Abort()
-			return
-		}
-
-		orgID, err := uuid.Parse(orgIDStr)
-		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid org_id format"})
+		// Validate that they're not empty
+		if tenantIDStr == "" || orgIDStr == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "tenant_id and org_id cannot be empty"})
 			c.Abort()
 			return
 		}
 
 		// Get tenant database connection
-		tenantDB, tenantDBName, err := GetTenantDatabase(tenantID, orgID)
+		tenantDB, tenantDBName, err := GetTenantDatabase(tenantIDStr, orgIDStr)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"error":   "Failed to connect to tenant database",
@@ -85,8 +99,8 @@ func TenantDBMiddleware() gin.HandlerFunc {
 		}
 
 		// Set tenant info in context
-		c.Set("tenant_id", tenantID)
-		c.Set("org_id", orgID)
+		c.Set("tenant_id", tenantIDStr)
+		c.Set("org_id", orgIDStr)
 		c.Set("tenant_db", tenantDB)
 		c.Set("tenant_db_name", tenantDBName)
 
@@ -94,7 +108,6 @@ func TenantDBMiddleware() gin.HandlerFunc {
 		c.Next()
 
 		// Optional: Close tenant DB connection after request
-		// (You might want to use connection pooling instead)
 		defer func() {
 			if sqlDB, err := tenantDB.DB(); err == nil {
 				sqlDB.Close()
@@ -123,32 +136,33 @@ func (br *BodyReader) Close() error {
 }
 
 // GetTenantDatabase connects to the appropriate tenant database
-func GetTenantDatabase(tenantID, orgID uuid.UUID) (*gorm.DB, string, error) {
+func GetTenantDatabase(tenantID, orgID string) (*gorm.DB, string, error) {
 	// First, get tenant info from main database
-	user, err := getTenantInfo(tenantID, orgID)
+	tenant, err := getTenantInfo(tenantID, orgID)
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to get tenant info: %w", err)
 	}
 
-	if user.TenantDB == "" {
+	if tenant.TenantDB == "" {
 		return nil, "", fmt.Errorf("tenant database name not found for tenant_id: %s", tenantID)
 	}
 
 	// Connect to tenant-specific database
-	tenantDB, err := connectToTenantDB(user.TenantDB)
+	tenantDB, err := connectToTenantDB(tenant.TenantDB)
 	if err != nil {
-		return nil, "", fmt.Errorf("failed to connect to tenant database '%s': %w", user.TenantDB, err)
+		return nil, "", fmt.Errorf("failed to connect to tenant database '%s': %w", tenant.TenantDB, err)
 	}
 
-	return tenantDB, user.TenantDB, nil
+	return tenantDB, tenant.TenantDB, nil
 }
 
-// getTenantInfo retrieves tenant information from main database
-func getTenantInfo(tenantID, orgID uuid.UUID) (*models.User, error) {
-	var user models.User
+// getTenantInfo retrieves tenant information from main database using FIXED table name and fields
+func getTenantInfo(tenantID, orgID string) (*Tenant, error) {
+	var tenant Tenant
 
-	// Query main database for tenant info
-	err := db.DB.Where("tenant_id = ? AND id = ?", tenantID, orgID).First(&user).Error
+	// Query main database for tenant info using the CORRECT table name "tenants"
+	// and using string comparison for tenant_id and id (org_id)
+	err := db.DB.Where("tenant_id = ? AND id = ?", tenantID, orgID).First(&tenant).Error
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, fmt.Errorf("tenant not found for tenant_id: %s, org_id: %s", tenantID, orgID)
@@ -156,7 +170,7 @@ func getTenantInfo(tenantID, orgID uuid.UUID) (*models.User, error) {
 		return nil, fmt.Errorf("database error: %w", err)
 	}
 
-	return &user, nil
+	return &tenant, nil
 }
 
 // connectToTenantDB creates connection to tenant-specific database
@@ -201,77 +215,7 @@ func connectToTenantDB(tenantDBName string) (*gorm.DB, error) {
 	return tenantDB, nil
 }
 
-// TenantConnectionPool manages tenant database connections
-type TenantConnectionPool struct {
-	connections map[string]*gorm.DB
-	maxAge      time.Duration
-	lastUsed    map[string]time.Time
-}
-
-var tenantPool = &TenantConnectionPool{
-	connections: make(map[string]*gorm.DB),
-	lastUsed:    make(map[string]time.Time),
-	maxAge:      30 * time.Minute, // Close connections after 30 minutes of inactivity
-}
-
-// GetOrCreateTenantConnection gets existing connection or creates new one with pooling
-func GetOrCreateTenantConnection(tenantID, orgID uuid.UUID) (*gorm.DB, error) {
-	// Get tenant info
-	user, err := getTenantInfo(tenantID, orgID)
-	if err != nil {
-		return nil, err
-	}
-
-	tenantDBName := user.TenantDB
-
-	// Check if we have a valid existing connection
-	if db, exists := tenantPool.connections[tenantDBName]; exists {
-		// Check if connection is still alive and not too old
-		if time.Since(tenantPool.lastUsed[tenantDBName]) < tenantPool.maxAge {
-			if sqlDB, err := db.DB(); err == nil {
-				if err := sqlDB.Ping(); err == nil {
-					tenantPool.lastUsed[tenantDBName] = time.Now()
-					return db, nil
-				}
-			}
-		}
-		// Connection is dead or too old, remove it
-		if sqlDB, err := db.DB(); err == nil {
-			sqlDB.Close()
-		}
-		delete(tenantPool.connections, tenantDBName)
-		delete(tenantPool.lastUsed, tenantDBName)
-	}
-
-	// Create new connection
-	tenantDB, err := connectToTenantDB(tenantDBName)
-	if err != nil {
-		return nil, err
-	}
-
-	// Cache the connection
-	tenantPool.connections[tenantDBName] = tenantDB
-	tenantPool.lastUsed[tenantDBName] = time.Now()
-
-	return tenantDB, nil
-}
-
-// CleanupOldConnections removes old unused connections
-func CleanupOldConnections() {
-	for dbName, lastUsed := range tenantPool.lastUsed {
-		if time.Since(lastUsed) > tenantPool.maxAge {
-			if db, exists := tenantPool.connections[dbName]; exists {
-				if sqlDB, err := db.DB(); err == nil {
-					sqlDB.Close()
-				}
-				delete(tenantPool.connections, dbName)
-				delete(tenantPool.lastUsed, dbName)
-			}
-		}
-	}
-}
-
-// Helper function to get tenant DB from context
+// Helper functions remain the same but updated for string IDs
 func GetTenantDBFromContext(c *gin.Context) (*gorm.DB, error) {
 	tenantDB, exists := c.Get("tenant_db")
 	if !exists {
@@ -286,26 +230,25 @@ func GetTenantDBFromContext(c *gin.Context) (*gorm.DB, error) {
 	return db, nil
 }
 
-// Helper function to get tenant info from context
-func GetTenantInfoFromContext(c *gin.Context) (uuid.UUID, uuid.UUID, error) {
+func GetTenantInfoFromContext(c *gin.Context) (string, string, error) {
 	tenantID, exists := c.Get("tenant_id")
 	if !exists {
-		return uuid.Nil, uuid.Nil, fmt.Errorf("tenant_id not found in context")
+		return "", "", fmt.Errorf("tenant_id not found in context")
 	}
 
 	orgID, exists := c.Get("org_id")
 	if !exists {
-		return uuid.Nil, uuid.Nil, fmt.Errorf("org_id not found in context")
+		return "", "", fmt.Errorf("org_id not found in context")
 	}
 
-	tID, ok := tenantID.(uuid.UUID)
+	tID, ok := tenantID.(string)
 	if !ok {
-		return uuid.Nil, uuid.Nil, fmt.Errorf("invalid tenant_id type in context")
+		return "", "", fmt.Errorf("invalid tenant_id type in context")
 	}
 
-	oID, ok := orgID.(uuid.UUID)
+	oID, ok := orgID.(string)
 	if !ok {
-		return uuid.Nil, uuid.Nil, fmt.Errorf("invalid org_id type in context")
+		return "", "", fmt.Errorf("invalid org_id type in context")
 	}
 
 	return tID, oID, nil

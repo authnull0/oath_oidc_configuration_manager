@@ -1,4 +1,6 @@
 // src/models/dto/auth_models.go
+
+// Updated DTOs for string-based IDs
 package dto
 
 import (
@@ -52,7 +54,6 @@ func (m JSONMap) GormDataType() string {
 	return "jsonb"
 }
 
-// GormDBDataType returns the database type for GORM
 func (JSONMap) GormDBDataType(db *gorm.DB, field *schema.Field) string {
 	if db.Dialector.Name() == "postgres" {
 		return "jsonb"
@@ -60,20 +61,20 @@ func (JSONMap) GormDBDataType(db *gorm.DB, field *schema.Field) string {
 	return "json"
 }
 
-// ===== MAIN ENTITY =====
+// ===== MAIN ENTITY WITH STRING IDS =====
 
-// OAuthOIDCConfiguration - Main configuration entity
+// OAuthOIDCConfiguration - Main configuration entity with string IDs
 type OAuthOIDCConfiguration struct {
 	ID          uuid.UUID  `json:"id" gorm:"type:uuid;primary_key;default:gen_random_uuid()"`
 	Name        string     `json:"name" gorm:"not null;index"`
-	OrgID       uuid.UUID  `json:"org_id" gorm:"type:uuid;not null;index"`
-	TenantID    uuid.UUID  `json:"tenant_id" gorm:"type:uuid;not null;index"`
-	ConfigType  string     `json:"config_type" gorm:"not null"`    // "local_auth", "oidc", "oauth_server", "webauthn_mfa", "saml2", "entra_sync", "ad_sync"
-	ConfigFiles JSONMap    `json:"config_files" gorm:"type:jsonb"` // JSON configuration files
+	OrgID       string     `json:"org_id" gorm:"not null;index"`    // Changed to string
+	TenantID    string     `json:"tenant_id" gorm:"not null;index"` // Changed to string
+	ConfigType  string     `json:"config_type" gorm:"not null"`
+	ConfigFiles JSONMap    `json:"config_files" gorm:"type:jsonb"`
 	IsActive    bool       `json:"is_active" gorm:"default:true"`
 	CreatedAt   time.Time  `json:"created_at"`
 	UpdatedAt   time.Time  `json:"updated_at"`
-	DeletedAt   *time.Time `json:"-" gorm:"index"` // Changed from gorm.DeletedAt for compatibility
+	DeletedAt   *time.Time `json:"-" gorm:"index"`
 	CreatedBy   string     `json:"created_by"`
 	UpdatedBy   string     `json:"updated_by"`
 }
@@ -84,7 +85,6 @@ func (OAuthOIDCConfiguration) TableName() string {
 
 // Helper method to convert to response
 func (c *OAuthOIDCConfiguration) ToResponse() *ConfigResponse {
-	// Convert JSONMap to map[string]interface{} for response
 	configFiles := make(map[string]interface{})
 	for k, v := range c.ConfigFiles {
 		configFiles[k] = v
@@ -93,8 +93,8 @@ func (c *OAuthOIDCConfiguration) ToResponse() *ConfigResponse {
 	return &ConfigResponse{
 		ID:          c.ID,
 		Name:        c.Name,
-		OrgID:       c.OrgID,
-		TenantID:    c.TenantID,
+		OrgID:       c.OrgID,    // Now string
+		TenantID:    c.TenantID, // Now string
 		ConfigType:  c.ConfigType,
 		ConfigFiles: configFiles,
 		IsActive:    c.IsActive,
@@ -105,13 +105,13 @@ func (c *OAuthOIDCConfiguration) ToResponse() *ConfigResponse {
 	}
 }
 
-// ===== CRUD REQUEST DTOs =====
+// ===== CRUD REQUEST DTOs WITH STRING IDS =====
 
 // CreateConfigRequest - Generic request for creating any configuration
 type CreateConfigRequest struct {
 	Name        string                 `json:"name" validate:"required"`
-	OrgID       uuid.UUID              `json:"org_id" validate:"required"`
-	TenantID    uuid.UUID              `json:"tenant_id" validate:"required"`
+	OrgID       string                 `json:"org_id" validate:"required"`    // Changed to string
+	TenantID    string                 `json:"tenant_id" validate:"required"` // Changed to string
 	ConfigType  string                 `json:"config_type" validate:"required,oneof=local_auth oidc oauth_server webauthn_mfa saml2 entra_sync ad_sync"`
 	ConfigFiles map[string]interface{} `json:"config_files" validate:"required"`
 	IsActive    bool                   `json:"is_active"`
@@ -121,8 +121,8 @@ type CreateConfigRequest struct {
 // UpdateConfigRequest - Generic request for updating configurations
 type UpdateConfigRequest struct {
 	ID          uuid.UUID              `json:"id" validate:"required"`
-	OrgID       uuid.UUID              `json:"org_id" validate:"required"`
-	TenantID    uuid.UUID              `json:"tenant_id" validate:"required"`
+	OrgID       string                 `json:"org_id" validate:"required"`    // Changed to string
+	TenantID    string                 `json:"tenant_id" validate:"required"` // Changed to string
 	Name        *string                `json:"name,omitempty"`
 	ConfigFiles map[string]interface{} `json:"config_files,omitempty"`
 	IsActive    *bool                  `json:"is_active,omitempty"`
@@ -131,38 +131,174 @@ type UpdateConfigRequest struct {
 
 // GetConfigsRequest - Request for listing configurations with filters
 type GetConfigsRequest struct {
-	OrgID      uuid.UUID `json:"org_id" validate:"required"`
-	TenantID   uuid.UUID `json:"tenant_id" validate:"required"`
-	Page       int       `json:"page"`
-	Limit      int       `json:"limit"`
-	ConfigType string    `json:"config_type,omitempty"`
-	ActiveOnly bool      `json:"active_only"`
+	OrgID      string `json:"org_id" validate:"required"`    // Changed to string
+	TenantID   string `json:"tenant_id" validate:"required"` // Changed to string
+	Page       int    `json:"page"`
+	Limit      int    `json:"limit"`
+	ConfigType string `json:"config_type,omitempty"`
+	ActiveOnly bool   `json:"active_only"`
 }
 
 // GetConfigByNameRequest - Request for getting configuration by name
 type GetConfigByNameRequest struct {
-	Name     string    `json:"name" validate:"required"`
-	OrgID    uuid.UUID `json:"org_id" validate:"required"`
-	TenantID uuid.UUID `json:"tenant_id" validate:"required"`
+	Name     string `json:"name" validate:"required"`
+	OrgID    string `json:"org_id" validate:"required"`    // Changed to string
+	TenantID string `json:"tenant_id" validate:"required"` // Changed to string
 }
 
 // GetConfigByIDRequest - Request for getting configuration by ID
 type GetConfigByIDRequest struct {
 	ID       uuid.UUID `json:"id" validate:"required"`
-	OrgID    uuid.UUID `json:"org_id" validate:"required"`
-	TenantID uuid.UUID `json:"tenant_id" validate:"required"`
+	OrgID    string    `json:"org_id" validate:"required"`    // Changed to string
+	TenantID string    `json:"tenant_id" validate:"required"` // Changed to string
 }
 
 // DeleteConfigRequest - Request for deleting configuration
 type DeleteConfigRequest struct {
 	ID       uuid.UUID `json:"id" validate:"required"`
-	OrgID    uuid.UUID `json:"org_id" validate:"required"`
-	TenantID uuid.UUID `json:"tenant_id" validate:"required"`
+	OrgID    string    `json:"org_id" validate:"required"`    // Changed to string
+	TenantID string    `json:"tenant_id" validate:"required"` // Changed to string
 }
 
-// ===== MULTI-TENANT SPECIFIC REQUEST DTOs =====
+// ===== SPECIFIC CONFIGURATION REQUEST DTOs WITH STRING IDS =====
 
-// GetTenantConfigsRequest - Request for getting all tenant configurations
+// ConfigureOIDCRequest - Request for configuring OIDC
+type ConfigureOIDCRequest struct {
+	Name       string     `json:"name" validate:"required"`
+	OrgID      string     `json:"org_id" validate:"required"`    // Changed to string
+	TenantID   string     `json:"tenant_id" validate:"required"` // Changed to string
+	OIDCConfig OIDCConfig `json:"oidc_config" validate:"required"`
+	IsActive   bool       `json:"is_active"`
+	CreatedBy  string     `json:"created_by"`
+}
+
+// OIDC Configuration structs (unchanged)
+type OIDCConfig struct {
+	ClientID           string            `json:"client_id" validate:"required"`
+	ClientSecret       string            `json:"client_secret" validate:"required"`
+	Issuer             string            `json:"issuer,omitempty"`
+	RedirectURL        string            `json:"redirect_url,omitempty"`
+	PostLogoutURL      string            `json:"post_logout_url,omitempty"`
+	Scopes             []string          `json:"scopes" validate:"required,min=1"`
+	ProviderName       string            `json:"provider_name,omitempty"`
+	ClaimMappings      map[string]string `json:"claim_mappings,omitempty"`
+	EnablePKCE         bool              `json:"enable_pkce"`
+	ResponseType       string            `json:"response_type,omitempty"`
+	ResponseMode       string            `json:"response_mode,omitempty"`
+	EnableNonce        bool              `json:"enable_nonce"`
+	ClockSkew          int               `json:"clock_skew,omitempty"`
+	EnableAutoUserSync bool              `json:"enable_auto_user_sync"`
+	AuthURL            string            `json:"auth_url,omitempty"`
+	TokenURL           string            `json:"token_url,omitempty"`
+	UserInfoURL        string            `json:"user_info_url,omitempty"`
+}
+
+// ===== RESPONSE DTOs WITH STRING IDS =====
+
+// ConfigResponse - Single configuration response
+type ConfigResponse struct {
+	ID          uuid.UUID              `json:"id"`
+	Name        string                 `json:"name"`
+	OrgID       string                 `json:"org_id"`    // Changed to string
+	TenantID    string                 `json:"tenant_id"` // Changed to string
+	ConfigType  string                 `json:"config_type"`
+	ConfigFiles map[string]interface{} `json:"config_files"`
+	IsActive    bool                   `json:"is_active"`
+	CreatedAt   time.Time              `json:"created_at"`
+	UpdatedAt   time.Time              `json:"updated_at"`
+	CreatedBy   string                 `json:"created_by"`
+	UpdatedBy   string                 `json:"updated_by"`
+}
+
+// ConfigListResponse - List of configurations response
+type ConfigListResponse struct {
+	Configs    []*ConfigResponse `json:"configs"`
+	Page       int               `json:"page"`
+	Limit      int               `json:"limit"`
+	Total      int64             `json:"total"`
+	TotalPages int64             `json:"total_pages"`
+}
+
+// ===== ERROR AND SUCCESS RESPONSES =====
+
+// ErrorResponse - Standard error response
+type ErrorResponse struct {
+	Error     string    `json:"error"`
+	Message   string    `json:"message"`
+	Code      int       `json:"code"`
+	Timestamp time.Time `json:"timestamp"`
+	RequestID string    `json:"request_id,omitempty"`
+	Details   []string  `json:"details,omitempty"`
+}
+
+// MessageResponse - Standard success response
+type MessageResponse struct {
+	Message   string      `json:"message"`
+	Success   bool        `json:"success"`
+	Data      interface{} `json:"data,omitempty"`
+	Timestamp time.Time   `json:"timestamp"`
+	RequestID string      `json:"request_id,omitempty"`
+}
+
+// Custom JSONMap type for JSONB handling
+
+type Tenant struct {
+	ID           string     `json:"id" gorm:"primary_key"`
+	TenantID     string     `json:"tenant_id"`
+	TenantDB     string     `json:"tenant_db"`
+	Email        string     `json:"email"`
+	Username     string     `json:"username"`
+	PasswordHash string     `json:"password_hash"`
+	Provider     string     `json:"provider" gorm:"default:local"`
+	ProviderID   string     `json:"provider_id"`
+	Name         string     `json:"name"`
+	Avatar       string     `json:"avatar"`
+	Source       string     `json:"source"`
+	Status       string     `json:"status"`
+	LastLogin    *time.Time `json:"last_login"`
+	CreatedAt    time.Time  `json:"created_at"`
+	UpdatedAt    time.Time  `json:"updated_at"`
+}
+
+func (Tenant) TableName() string {
+	return "tenants"
+}
+
+// TenantHydraClient model - matches your tenant_hydra_clients table
+// type TenantHydraClient struct {
+// 	ID                uuid.UUID `json:"id" gorm:"type:uuid;primary_key;default:uuid_generate_v4()"`
+// 	OrgID             string    `json:"org_id" gorm:"not null"`
+// 	TenantID          string    `json:"tenant_id" gorm:"not null"`
+// 	HydraClientID     string    `json:"hydra_client_id" gorm:"not null;unique"`
+// 	HydraClientSecret string    `json:"hydra_client_secret" gorm:"not null"`
+// 	CreatedAt         time.Time `json:"created_at" gorm:"default:CURRENT_TIMESTAMP"`
+// 	UpdatedAt         time.Time `json:"updated_at" gorm:"default:CURRENT_TIMESTAMP"`
+// }
+
+// func (TenantHydraClient) TableName() string {
+// 	return "tenant_hydra_clients"
+// }
+
+// OIDC Configuration model for tenant databases
+type OIDCConfiguration struct {
+	ID          uuid.UUID              `json:"id" gorm:"type:uuid;primary_key;default:gen_random_uuid()"`
+	Name        string                 `json:"name" gorm:"not null;index"`
+	OrgID       string                 `json:"org_id" gorm:"not null;index"`    // Changed to string
+	TenantID    string                 `json:"tenant_id" gorm:"not null;index"` // Changed to string
+	ConfigType  string                 `json:"config_type" gorm:"not null"`
+	ConfigFiles map[string]interface{} `json:"config_files" gorm:"type:jsonb"`
+	IsActive    bool                   `json:"is_active" gorm:"default:true"`
+	CreatedAt   time.Time              `json:"created_at"`
+	UpdatedAt   time.Time              `json:"updated_at"`
+	DeletedAt   *time.Time             `json:"-" gorm:"index"`
+	CreatedBy   string                 `json:"created_by"`
+	UpdatedBy   string                 `json:"updated_by"`
+}
+
+func (OIDCConfiguration) TableName() string {
+	return "oauth_oidc_configurations"
+}
+
 type GetTenantConfigsRequest struct {
 	OrgID      uuid.UUID `json:"org_id" validate:"required"`
 	TenantID   uuid.UUID `json:"tenant_id" validate:"required"`
@@ -219,17 +355,6 @@ type ConfigureLocalAuthRequest struct {
 	CreatedBy       string          `json:"created_by"`
 }
 
-// ConfigureOIDCRequest - Request for configuring OIDC
-type ConfigureOIDCRequest struct {
-	Name       string     `json:"name" validate:"required"`
-	OrgID      uuid.UUID  `json:"org_id" validate:"required"`
-	TenantID   uuid.UUID  `json:"tenant_id" validate:"required"`
-	OIDCConfig OIDCConfig `json:"oidc_config" validate:"required"`
-	IsActive   bool       `json:"is_active"`
-	CreatedBy  string     `json:"created_by"`
-}
-
-// ConfigureOAuthServerRequest - Request for configuring OAuth Server
 type ConfigureOAuthServerRequest struct {
 	Name              string            `json:"name" validate:"required"`
 	OrgID             uuid.UUID         `json:"org_id" validate:"required"`
@@ -307,25 +432,6 @@ type PasswordPolicy struct {
 	MaxAge            int  `json:"max_age" validate:"min=0"` // days, 0 = no expiry
 }
 
-// OIDCConfig - OIDC configuration
-type OIDCConfig struct {
-	ClientID           string            `json:"client_id" validate:"required"`
-	ClientSecret       string            `json:"client_secret" validate:"required"`
-	Issuer             string            `json:"issuer" validate:"required,url"`
-	RedirectURL        string            `json:"redirect_url" validate:"required,url"`
-	PostLogoutURL      string            `json:"post_logout_url,omitempty"`
-	Scopes             []string          `json:"scopes" validate:"required,min=1"`
-	ProviderName       string            `json:"provider_name" validate:"required"`
-	ClaimMappings      map[string]string `json:"claim_mappings,omitempty"`
-	EnablePKCE         bool              `json:"enable_pkce"`
-	ResponseType       string            `json:"response_type" validate:"required,oneof=code id_token token"`
-	ResponseMode       string            `json:"response_mode,omitempty"`
-	EnableNonce        bool              `json:"enable_nonce"`
-	ClockSkew          int               `json:"clock_skew" validate:"min=0,max=300"` // seconds
-	EnableAutoUserSync bool              `json:"enable_auto_user_sync"`
-}
-
-// OAuthServerConfig - OAuth Server configuration
 type OAuthServerConfig struct {
 	ServerURL            string            `json:"server_url" validate:"required,url"`
 	ClientID             string            `json:"client_id" validate:"required"`
@@ -435,33 +541,6 @@ type ADSyncConfig struct {
 	PageSize          int               `json:"page_size" validate:"min=100,max=5000"`
 }
 
-// ===== RESPONSE DTOs =====
-
-// ConfigResponse - Single configuration response
-type ConfigResponse struct {
-	ID          uuid.UUID              `json:"id"`
-	Name        string                 `json:"name"`
-	OrgID       uuid.UUID              `json:"org_id"`
-	TenantID    uuid.UUID              `json:"tenant_id"`
-	ConfigType  string                 `json:"config_type"`
-	ConfigFiles map[string]interface{} `json:"config_files"`
-	IsActive    bool                   `json:"is_active"`
-	CreatedAt   time.Time              `json:"created_at"`
-	UpdatedAt   time.Time              `json:"updated_at"`
-	CreatedBy   string                 `json:"created_by"`
-	UpdatedBy   string                 `json:"updated_by"`
-}
-
-// ConfigListResponse - List of configurations response
-type ConfigListResponse struct {
-	Configs    []*ConfigResponse `json:"configs"`
-	Page       int               `json:"page"`
-	Limit      int               `json:"limit"`
-	Total      int64             `json:"total"`
-	TotalPages int64             `json:"total_pages"`
-}
-
-// TenantConfigListResponse - Tenant-specific configuration list response
 type TenantConfigListResponse struct {
 	Configs    []*ConfigResponse `json:"configs"`
 	TenantID   uuid.UUID         `json:"tenant_id"`
@@ -583,27 +662,6 @@ type ConfigAuditListResponse struct {
 	Limit      int                       `json:"limit"`
 	Total      int64                     `json:"total"`
 	TotalPages int64                     `json:"total_pages"`
-}
-
-// ===== ERROR AND SUCCESS RESPONSES =====
-
-// ErrorResponse - Standard error response
-type ErrorResponse struct {
-	Error     string    `json:"error"`
-	Message   string    `json:"message"`
-	Code      int       `json:"code"`
-	Timestamp time.Time `json:"timestamp"`
-	RequestID string    `json:"request_id,omitempty"`
-	Details   []string  `json:"details,omitempty"`
-}
-
-// MessageResponse - Standard success response
-type MessageResponse struct {
-	Message   string      `json:"message"`
-	Success   bool        `json:"success"`
-	Data      interface{} `json:"data,omitempty"`
-	Timestamp time.Time   `json:"timestamp"`
-	RequestID string      `json:"request_id,omitempty"`
 }
 
 // ValidationErrorResponse - Validation error response
