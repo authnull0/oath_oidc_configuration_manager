@@ -240,41 +240,22 @@ type MessageResponse struct {
 // Custom JSONMap type for JSONB handling
 
 type Tenant struct {
-	ID           string     `json:"id" gorm:"primary_key"`
-	TenantID     string     `json:"tenant_id"`
+	ID           uuid.UUID  `json:"id"`
+	TenantID     uuid.UUID  `json:"tenant_id"`
 	TenantDB     string     `json:"tenant_db"`
-	Email        string     `json:"email"`
+	Email        string     `json:"email" gorm:"uniqueIndex;not null"`
 	Username     string     `json:"username"`
-	PasswordHash string     `json:"password_hash"`
-	Provider     string     `json:"provider" gorm:"default:local"`
-	ProviderID   string     `json:"provider_id"`
-	Name         string     `json:"name"`
-	Avatar       string     `json:"avatar"`
-	Source       string     `json:"source"`
-	Status       string     `json:"status"`
-	LastLogin    *time.Time `json:"last_login"`
+	PasswordHash string     `json:"password_hash,omitempty"`
+	Provider     string     `gorm:"default:'local';index:idx_users_provider" json:"provider"`
+	ProviderID   string     `gorm:"size:255;index:idx_users_provider" json:"provider_id"`
+	Name         string     `json:"name,omitempty"`
+	Avatar       string     `gorm:"size:500" json:"avatar"`
+	Source       string     `json:"source,omitempty"`
+	Status       string     `json:"status,omitempty"`
+	LastLogin    *time.Time `json:"last_login,omitempty"`
 	CreatedAt    time.Time  `json:"created_at"`
 	UpdatedAt    time.Time  `json:"updated_at"`
 }
-
-func (Tenant) TableName() string {
-	return "tenants"
-}
-
-// TenantHydraClient model - matches your tenant_hydra_clients table
-// type TenantHydraClient struct {
-// 	ID                uuid.UUID `json:"id" gorm:"type:uuid;primary_key;default:uuid_generate_v4()"`
-// 	OrgID             string    `json:"org_id" gorm:"not null"`
-// 	TenantID          string    `json:"tenant_id" gorm:"not null"`
-// 	HydraClientID     string    `json:"hydra_client_id" gorm:"not null;unique"`
-// 	HydraClientSecret string    `json:"hydra_client_secret" gorm:"not null"`
-// 	CreatedAt         time.Time `json:"created_at" gorm:"default:CURRENT_TIMESTAMP"`
-// 	UpdatedAt         time.Time `json:"updated_at" gorm:"default:CURRENT_TIMESTAMP"`
-// }
-
-// func (TenantHydraClient) TableName() string {
-// 	return "tenant_hydra_clients"
-// }
 
 // OIDC Configuration model for tenant databases
 type OIDCConfiguration struct {
