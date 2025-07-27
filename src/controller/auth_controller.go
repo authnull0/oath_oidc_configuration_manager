@@ -13,7 +13,8 @@ import (
 	"strings"
 	"time"
 
-	"oath_oidc_configuration_manager/src/models/dto"
+	"oath_oidc_configuration_manager/src/db"
+	"oath_oidc_configuration_manager/src/dto"
 	"oath_oidc_configuration_manager/src/repository"
 	"oath_oidc_configuration_manager/src/service"
 
@@ -28,8 +29,8 @@ type AuthController struct {
 }
 
 type HydraConfig struct {
-	AdminURL  string // Hydra admin URL (http://localhost:4445)
-	PublicURL string // Hydra public URL (http://localhost:4444)
+	AdminURL  string
+	PublicURL string
 }
 
 // Complete OIDC Configuration Request - Single API Call
@@ -136,8 +137,8 @@ func NewAuthController(authService *service.AuthService) *AuthController {
 	return &AuthController{
 		authService: authService,
 		hydraConfig: HydraConfig{
-			AdminURL:  getEnv("HYDRA_ADMIN_URL", "http://localhost:4445"),
-			PublicURL: getEnv("HYDRA_PUBLIC_URL", "http://localhost:4444"),
+			AdminURL:  db.AppConfig.HydraAdminURL,
+			PublicURL: db.AppConfig.HydraPublicURL,
 		},
 		tenantHydraClientRepo: repository.NewTenantHydraClientRepository(), // Add this
 	}
@@ -253,7 +254,7 @@ func (ac *AuthController) CompleteOIDCConfiguration(c *gin.Context) {
 				"sort_order":   provider.SortOrder,
 				"created_at":   time.Now().Format(time.RFC3339),
 				"created_by":   req.CreatedBy,
-				"callback_url": fmt.Sprintf("%s/callback/%s", getEnv("OAUTH_LOGIN_SERVICE_URL", "http://localhost:8080"), normalizeProviderName(provider.ProviderName)),
+				"callback_url": fmt.Sprintf("%s/callback/%s", db.AppConfig.IdentityProviderURL, normalizeProviderName(provider.ProviderName)),
 			},
 		}
 
@@ -287,7 +288,7 @@ func (ac *AuthController) CompleteOIDCConfiguration(c *gin.Context) {
 			"provider_name": provider.ProviderName,
 			"display_name":  provider.DisplayName,
 			"client_id":     oidcClientID,
-			"callback_url":  fmt.Sprintf("%s/callback/%s", getEnv("OAUTH_LOGIN_SERVICE_URL", "http://localhost:8080"), normalizeProviderName(provider.ProviderName)),
+			"callback_url":  fmt.Sprintf("%s/callback/%s", db.AppConfig.IdentityProviderURL, normalizeProviderName(provider.ProviderName)),
 			"is_active":     provider.IsActive,
 		})
 	}
@@ -806,26 +807,6 @@ func (ac *AuthController) deleteHydraClient(clientID string) error {
 
 // ===== UTILITY FUNCTIONS =====
 
-func (ac *AuthController) storeTenantClientMapping(tenantID, orgID, clientID, clientSecret, clientName string) error {
-	client := &dto.TenantHydraClient{
-		OrgID:             orgID,
-		TenantID:          tenantID,
-		TenantName:        clientName,
-		HydraClientID:     clientID,
-		HydraClientSecret: clientSecret,
-		ClientName:        clientName,
-		ClientType:        "main",
-		IsActive:          true,
-		CreatedBy:         "system",
-	}
-
-	if err := ac.tenantHydraClientRepo.Create(client); err != nil {
-		return fmt.Errorf("failed to store tenant client mapping: %w", err)
-	}
-
-	log.Printf("Successfully stored tenant client mapping for tenant_id=%s", tenantID)
-	return nil
-}
 func (ac *AuthController) generateCallbackURLs(providers []OIDCProviderConfig) map[string]string {
 	callbackURLs := make(map[string]string)
 
@@ -2033,30 +2014,7 @@ func (ac *AuthController) SyncHydraClients(c *gin.Context) {
 		Timestamp: time.Now(),
 	})
 }
-func (ac *AuthController) storeOIDCProviderMapping(tenantID, orgID, tenantName, providerName,
-	clientID, clientSecret string) error {
 
-	client := &dto.TenantHydraClient{
-		OrgID:             orgID,
-		TenantID:          tenantID,
-		TenantName:        tenantName,
-		HydraClientID:     clientID,
-		HydraClientSecret: clientSecret,
-		ClientName:        fmt.Sprintf("%s %s OIDC Provider", tenantName, providerName),
-		ClientType:        "oidc_provider",
-		ProviderName:      providerName,
-		IsActive:          true,
-		CreatedBy:         "system",
-	}
-
-	if err := ac.tenantHydraClientRepo.Create(client); err != nil {
-		return fmt.Errorf("failed to store OIDC provider mapping: %w", err)
-	}
-
-	log.Printf("Successfully stored OIDC provider mapping for tenant_id=%s, provider=%s",
-		tenantID, providerName)
-	return nil
-}
 func (ac *AuthController) ListTenantHydraClients(c *gin.Context) {
 	var req dto.GetTenantHydraClientsRequest
 	if err := c.ShouldBindJSON(&req); err != nil {

@@ -5,7 +5,6 @@ import (
 	"log"
 	"oath_oidc_configuration_manager/src/controller"
 	"oath_oidc_configuration_manager/src/db"
-	"oath_oidc_configuration_manager/src/middlewares"
 	"oath_oidc_configuration_manager/src/repository"
 	"oath_oidc_configuration_manager/src/service"
 	"os"
@@ -54,9 +53,6 @@ func setupRouter() *gin.Engine {
 	// CORS middleware
 	router.Use(corsMiddleware())
 
-	// Multi-tenant database middleware
-	router.Use(middlewares.TenantDBMiddleware())
-
 	return router
 }
 
@@ -79,7 +75,7 @@ func corsMiddleware() gin.HandlerFunc {
 // Setup routes - ALL POST REQUESTS WITH MANDATORY TENANT/ORG IDS
 func setupRoutes(router *gin.Engine, authController *controller.AuthController) {
 	// API version group
-	v1 := router.Group("/api/v1")
+	v1 := router.Group("/oocmgr")
 
 	// Health check endpoint
 	v1.GET("/health", func(c *gin.Context) {

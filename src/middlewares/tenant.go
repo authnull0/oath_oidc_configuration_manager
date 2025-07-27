@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"oath_oidc_configuration_manager/src/db"
-	models "oath_oidc_configuration_manager/src/models/dto"
+	"oath_oidc_configuration_manager/src/dto"
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -21,21 +21,21 @@ func ConnectToTenantDB(masterDB *gorm.DB, userEmail *string, tenantID *string) (
 		return nil, fmt.Errorf("provide either userEmail or tenantID, not both")
 	}
 
-	var user models.User
+	var tenant dto.Tenant
 	var err error
 
 	// Query based on the provided parameter
 	if userEmail != nil {
-		err = masterDB.First(&user, "email = ?", *userEmail).Error
+		err = masterDB.First(&tenant, "email = ?", *userEmail).Error
 	} else {
-		err = masterDB.First(&user, "tenant_id = ?", *tenantID).Error
+		err = masterDB.First(&tenant, "tenant_id = ?", *tenantID).Error
 	}
 
 	if err != nil {
 		return nil, fmt.Errorf("user not found: %w", err)
 	}
 
-	tenantDBName := user.TenantDB
+	tenantDBName := tenant.TenantDB
 
 	dsn := fmt.Sprintf(
 		"host=%s user=%s password=%s dbname=%s port=%s sslmode=disable",
@@ -99,21 +99,21 @@ func GetConnectionDynamically(masterDB *gorm.DB, userEmail *string, tenantID *st
 		return nil, fmt.Errorf("provide either userEmail or tenantID, not both")
 	}
 
-	var user models.User
+	var tenant dto.Tenant
 	var err error
 
 	// Query based on the provided parameter
 	if userEmail != nil {
-		err = masterDB.First(&user, "email = ?", *userEmail).Error
+		err = masterDB.First(&tenant, "email = ?", *userEmail).Error
 	} else {
-		err = masterDB.First(&user, "tenant_id = ?", *tenantID).Error
+		err = masterDB.First(&tenant, "tenant_id = ?", *tenantID).Error
 	}
 
 	if err != nil {
 		return nil, fmt.Errorf("user not found: %w", err)
 	}
 
-	tenantDBName := user.TenantDB
+	tenantDBName := tenant.TenantDB
 
 	// Check if we already have a connection
 	if db, exists := dbManager.connections[tenantDBName]; exists {

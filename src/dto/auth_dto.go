@@ -1,6 +1,3 @@
-// src/models/dto/auth_models.go
-
-// Updated DTOs for string-based IDs
 package dto
 
 import (

@@ -4,7 +4,7 @@ package service
 import (
 	"fmt"
 
-	"oath_oidc_configuration_manager/src/models/dto"
+	"oath_oidc_configuration_manager/src/dto"
 	"oath_oidc_configuration_manager/src/repository"
 
 	"github.com/gin-gonic/gin"

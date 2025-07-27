@@ -7,19 +7,22 @@ import (
 )
 
 type Config struct {
-	Port           string
-	DBName         string
-	DBUser         string
-	DBPassword     string
-	DBHost         string
-	DBPort         string
-	DBSchema       string
-	DatabaseURL    string
-	JWTDefSecret   string
-	JWTSdkSecret   string
-	AuthManagerURL string
-	VaultAddr      string
-	VaultToken     string
+	Port                string
+	DBName              string
+	DBUser              string
+	DBPassword          string
+	DBHost              string
+	DBPort              string
+	DBSchema            string
+	DatabaseURL         string
+	JWTDefSecret        string
+	JWTSdkSecret        string
+	AuthManagerURL      string
+	VaultAddr           string
+	VaultToken          string
+	HydraAdminURL       string
+	HydraPublicURL      string
+	IdentityProviderURL string
 }
 
 var AppConfig *Config
@@ -31,11 +34,11 @@ func LoadConfig() *Config {
 	}
 
 	// Load individual database variables
-	dbName := getEnv("DB_NAME", "authfuck")
+	dbName := getEnv("DB_NAME", "authsec")
 	dbUser := getEnv("DB_USER", "authsec")
 	dbPassword := getEnv("DB_PASSWORD", "authsec")
 	dbHost := getEnv("DB_HOST", "localhost")
-	dbPort := getEnv("DB_PORT", "7001")
+	dbPort := getEnv("DB_PORT", "5432")
 	dbSchema := getEnv("DB_SCHEMA", "public")
 
 	// Construct DatabaseURL
@@ -57,6 +60,9 @@ func LoadConfig() *Config {
 
 	vaultAddr := getEnv("VAULT_ADDR", "http://localhost:8200")
 	vaultToken := getEnv("VAULT_TOKEN", "")
+	hydraAdminURL := getEnv("HYDRA_ADMIN_URL", "http://localhost:4445")
+	hydraPublicURL := getEnv("HYDRA_PUBLIC_URL", "http://localhost:4444")
+	identityProviderURL := getEnv("IDENTITY_PROVIDER_URL", "http://localhost:7469")
 
 	// Validate critical variables
 	if dbName == "" || dbUser == "" || dbHost == "" || dbPort == "" {
@@ -73,19 +79,22 @@ func LoadConfig() *Config {
 	}
 
 	AppConfig = &Config{
-		Port:           port,
-		DBName:         dbName,
-		DBUser:         dbUser,
-		DBPassword:     dbPassword,
-		DBHost:         dbHost,
-		DBPort:         dbPort,
-		DBSchema:       dbSchema,
-		DatabaseURL:    databaseURL,
-		JWTDefSecret:   jwtDefSecret,
-		JWTSdkSecret:   jwtSdkSecret,
-		AuthManagerURL: authManagerURL,
-		VaultAddr:      vaultAddr,
-		VaultToken:     vaultToken,
+		Port:                port,
+		DBName:              dbName,
+		DBUser:              dbUser,
+		DBPassword:          dbPassword,
+		DBHost:              dbHost,
+		DBPort:              dbPort,
+		DBSchema:            dbSchema,
+		DatabaseURL:         databaseURL,
+		JWTDefSecret:        jwtDefSecret,
+		JWTSdkSecret:        jwtSdkSecret,
+		AuthManagerURL:      authManagerURL,
+		VaultAddr:           vaultAddr,
+		VaultToken:          vaultToken,
+		HydraAdminURL:       hydraAdminURL,
+		HydraPublicURL:      hydraPublicURL,
+		IdentityProviderURL: identityProviderURL,
 	}
 
 	return AppConfig

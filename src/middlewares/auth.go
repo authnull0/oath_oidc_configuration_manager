@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"oath_oidc_configuration_manager/src/db"
-	models "oath_oidc_configuration_manager/src/models/dto"
+	"oath_oidc_configuration_manager/src/dto"
 
 	"github.com/gin-gonic/gin"
 )
@@ -31,7 +31,7 @@ func AuthMiddleware() gin.HandlerFunc {
 
 		// Prepare request to internal auth service
 		token := parts[1]
-		requestBody, err := json.Marshal(models.TokenVerifyRequest{Token: token})
+		requestBody, err := json.Marshal(dto.TokenVerifyRequest{Token: token})
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to prepare token verification request"})
 			c.Abort()
@@ -49,7 +49,7 @@ func AuthMiddleware() gin.HandlerFunc {
 		defer resp.Body.Close()
 
 		// Parse response
-		var verifyResponse models.TokenVerifyResponse
+		var verifyResponse dto.TokenVerifyResponse
 		if err := json.NewDecoder(resp.Body).Decode(&verifyResponse); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to parse auth service response"})
 			c.Abort()

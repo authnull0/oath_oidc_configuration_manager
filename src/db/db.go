@@ -21,10 +21,5 @@ func InitDB(cfg *Config) {
 		log.Fatal("Failed to connect to database:", err)
 	}
 
-	// // Auto-migrate models
-	// if err := DB.AutoMigrate(&models.User{}, &models.Project{}, &models.Client{}, &models.Scope{}, &models.Role{}, &models.Group{}, &models.Resource{}); err != nil {
-	// 	log.Fatal("Failed to migrate database:", err)
-	// }
-
 	log.Println("Database connected successfully")
 }
