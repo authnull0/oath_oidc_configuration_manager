@@ -1,5 +1,5 @@
 #!/bin/bash
-export PORT="7472"
+export PORT="7467
 export DB_NAME="authsec"
 export DB_USER="authsec"
 export DB_PASSWORD="authsec@kloudone"
