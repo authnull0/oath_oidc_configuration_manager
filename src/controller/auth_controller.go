@@ -159,6 +159,7 @@ func (ac *AuthController) CompleteOIDCConfiguration(c *gin.Context) {
 
 	// Step 1: Create main tenant OAuth client in Hydra
 	tenantClientID := fmt.Sprintf("%s-main-client", req.TenantID)
+	clientSecret := generateSecureSecret()
 
 	// Set defaults for tenant client
 	grantTypes := req.TenantClient.GrantTypes
@@ -168,12 +169,12 @@ func (ac *AuthController) CompleteOIDCConfiguration(c *gin.Context) {
 
 	scopes := req.TenantClient.Scopes
 	if len(scopes) == 0 {
-		scopes = []string{"openid", "profile", "email"}
+		scopes = []string{"openid", "profile", "email", "offline_access"}
 	}
 
 	tenantClient := HydraClient{
 		ClientID:      tenantClientID,
-		ClientSecret:  generateSecureSecret(),
+		ClientSecret:  clientSecret,
 		GrantTypes:    grantTypes,
 		RedirectURIs:  req.TenantClient.RedirectURIs,
 		ResponseTypes: []string{"code"},
@@ -206,7 +207,7 @@ func (ac *AuthController) CompleteOIDCConfiguration(c *gin.Context) {
 		TenantID:          req.TenantID,
 		TenantName:        req.TenantName,
 		HydraClientID:     tenantClientID,
-		HydraClientSecret: tenantClient.ClientSecret,
+		HydraClientSecret: clientSecret,
 		ClientName:        req.TenantClient.ClientName,
 		RedirectURIs:      req.TenantClient.RedirectURIs,
 		Scopes:            scopes,
@@ -301,7 +302,7 @@ func (ac *AuthController) CompleteOIDCConfiguration(c *gin.Context) {
 
 		"tenant_client": map[string]interface{}{
 			"client_id":     tenantClientID,
-			"client_secret": tenantClient.ClientSecret,
+			"client_secret": clientSecret,
 			"redirect_uris": req.TenantClient.RedirectURIs,
 			"scopes":        scopes,
 		},
@@ -1407,7 +1408,7 @@ func (ac *AuthController) UpdateCompleteTenantConfig(c *gin.Context) {
 
 		scopes := req.TenantClient.Scopes
 		if len(scopes) == 0 {
-			scopes = []string{"openid", "profile", "email"}
+			scopes = []string{"openid", "profile", "email", "offline_access"}
 		}
 
 		// Update tenant name if provided
@@ -1667,7 +1668,7 @@ func (ac *AuthController) CreateBaseTenantClient(c *gin.Context) {
 	// Set default scopes if not provided
 	scopes := req.Scopes
 	if len(scopes) == 0 {
-		scopes = []string{"openid", "profile", "email"}
+		scopes = []string{"openid", "profile", "email", "offline_access"}
 	}
 
 	// Generate client secret
@@ -1680,6 +1681,7 @@ func (ac *AuthController) CreateBaseTenantClient(c *gin.Context) {
 		ClientSecret:  clientSecret,
 		GrantTypes:    []string{"authorization_code", "refresh_token"},
 		RedirectURIs:  req.RedirectURIs,
+		TokenEndpoint: "client_secret_post",
 		ResponseTypes: []string{"code"},
 		Scope:         strings.Join(scopes, " "),
 		Metadata: map[string]interface{}{
@@ -1792,7 +1794,7 @@ func (ac *AuthController) AddOIDCProviderToTenant(c *gin.Context) {
 			},
 			"is_active":    req.Provider.IsActive,
 			"sort_order":   req.Provider.SortOrder,
-			"callback_url": fmt.Sprintf("%s/callback/%s", ac.hydraConfig.PublicURL, normalizeProviderName(req.Provider.ProviderName)),
+			"callback_url": fmt.Sprintf("%s/callback/%s", getEnv("OAUTH_LOGIN_SERVICE_URL", "http://localhost:8080"), normalizeProviderName(req.Provider.ProviderName)),
 			"created_at":   time.Now().Format(time.RFC3339),
 			"created_by":   req.CreatedBy,
 		},
@@ -1808,6 +1810,24 @@ func (ac *AuthController) AddOIDCProviderToTenant(c *gin.Context) {
 		return
 	}
 
+	// Store the OIDC provider mapping in database
+	providerHydraClient := &dto.TenantHydraClient{
+		OrgID:             req.OrgID,
+		TenantID:          req.TenantID,
+		TenantName:        tenantName,
+		HydraClientID:     oidcClientID,
+		HydraClientSecret: "not-used-for-oidc-config",
+		ClientName:        fmt.Sprintf("%s %s OIDC Config", tenantName, req.Provider.DisplayName),
+		ClientType:        "oidc_provider",
+		ProviderName:      req.Provider.ProviderName,
+		IsActive:          req.Provider.IsActive,
+		CreatedBy:         req.CreatedBy,
+	}
+
+	if err := ac.tenantHydraClientRepo.Create(providerHydraClient); err != nil {
+		log.Printf("Warning: Failed to store OIDC provider mapping for %s: %v", req.Provider.ProviderName, err)
+	}
+
 	c.JSON(http.StatusCreated, dto.MessageResponse{
 		Message: "OIDC provider added successfully",
 		Success: true,
@@ -1817,7 +1837,7 @@ func (ac *AuthController) AddOIDCProviderToTenant(c *gin.Context) {
 			"provider_name": req.Provider.ProviderName,
 			"display_name":  req.Provider.DisplayName,
 			"client_id":     oidcClientID,
-			"callback_url":  fmt.Sprintf("%s/callback/%s", ac.hydraConfig.PublicURL, normalizeProviderName(req.Provider.ProviderName)),
+			"callback_url":  fmt.Sprintf("%s/callback/%s", getEnv("OAUTH_LOGIN_SERVICE_URL", "http://localhost:8080"), normalizeProviderName(req.Provider.ProviderName)),
 			"is_active":     req.Provider.IsActive,
 			"created_at":    time.Now(),
 		},
