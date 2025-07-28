@@ -1613,11 +1613,16 @@ func (ac *AuthController) getOIDCProvidersForTenant(tenantID string) ([]OIDCProv
 // Add these endpoints to your auth_controller.go
 
 // Step 1: Create Base Hydra Client for Tenant
+// Modified CreateBaseTenantClient function in auth_controller.go
+
+// Step 1: Create Base Hydra Client for Tenant - UPDATED to accept client credentials
 func (ac *AuthController) CreateBaseTenantClient(c *gin.Context) {
 	var req struct {
 		TenantID     string   `json:"tenant_id" validate:"required"`
 		OrgID        string   `json:"org_id" validate:"required"`
 		TenantName   string   `json:"tenant_name" validate:"required"`
+		ClientID     string   `json:"client_id" validate:"required"`     // NEW: Accept client_id
+		ClientSecret string   `json:"client_secret" validate:"required"` // NEW: Accept client_secret
 		RedirectURIs []string `json:"redirect_uris" validate:"required"`
 		Scopes       []string `json:"scopes,omitempty"`
 		CreatedBy    string   `json:"created_by"`
@@ -1646,20 +1651,33 @@ func (ac *AuthController) CreateBaseTenantClient(c *gin.Context) {
 		return
 	}
 
+	// OPTIONAL: Check if the provided client_id already exists in Hydra
+	existingProvidedClient, _ := ac.getHydraClient(req.ClientID)
+	if existingProvidedClient != nil {
+		c.JSON(http.StatusConflict, dto.ErrorResponse{
+			Error:     "Client ID already exists",
+			Message:   fmt.Sprintf("Client with ID %s already exists in Hydra", req.ClientID),
+			Code:      http.StatusConflict,
+			Timestamp: time.Now(),
+		})
+		return
+	}
+
 	// Set default scopes if not provided
 	scopes := req.Scopes
 	if len(scopes) == 0 {
 		scopes = []string{"openid", "profile", "email", "offline_access"}
 	}
 
-	// Generate client secret
-	clientSecret := fmt.Sprintf("tenant-secret-%d-%s", time.Now().Unix(), generateRandomString(16))
+	// Use provided client credentials instead of generating them
+	clientID := req.ClientID
+	clientSecret := req.ClientSecret
 
 	// Create main tenant client in Hydra
 	tenantClient := HydraClient{
-		ClientID:      mainClientID,
+		ClientID:      clientID, // Use provided client_id
 		ClientName:    fmt.Sprintf("%s Main OAuth Client", req.TenantName),
-		ClientSecret:  clientSecret,
+		ClientSecret:  clientSecret, // Use provided client_secret
 		GrantTypes:    []string{"authorization_code", "refresh_token"},
 		RedirectURIs:  req.RedirectURIs,
 		TokenEndpoint: "client_secret_post",
@@ -1685,7 +1703,27 @@ func (ac *AuthController) CreateBaseTenantClient(c *gin.Context) {
 		return
 	}
 
-	// Return the client credentials - SAVE THESE!
+	// Store the tenant client mapping in database
+	tenantHydraClient := &dto.TenantHydraClient{
+		OrgID:             req.OrgID,
+		TenantID:          req.TenantID,
+		TenantName:        req.TenantName,
+		HydraClientID:     clientID,     // Use provided client_id
+		HydraClientSecret: clientSecret, // Use provided client_secret
+		ClientName:        fmt.Sprintf("%s Main OAuth Client", req.TenantName),
+		RedirectURIs:      req.RedirectURIs,
+		Scopes:            scopes,
+		ClientType:        "main",
+		IsActive:          true,
+		CreatedBy:         req.CreatedBy,
+	}
+
+	if err := ac.tenantHydraClientRepo.Create(tenantHydraClient); err != nil {
+		log.Printf("Warning: Failed to store tenant-client mapping: %v", err)
+		// Don't fail the whole operation, just log the warning
+	}
+
+	// Return the client credentials
 	c.JSON(http.StatusCreated, dto.MessageResponse{
 		Message: "Tenant base client created successfully",
 		Success: true,
@@ -1693,8 +1731,8 @@ func (ac *AuthController) CreateBaseTenantClient(c *gin.Context) {
 			"tenant_id":     req.TenantID,
 			"org_id":        req.OrgID,
 			"tenant_name":   req.TenantName,
-			"client_id":     mainClientID,
-			"client_secret": clientSecret, // IMPORTANT: Save this!
+			"client_id":     clientID,     // Return the provided client_id
+			"client_secret": clientSecret, // Return the provided client_secret
 			"redirect_uris": req.RedirectURIs,
 			"scopes":        scopes,
 			"created_at":    time.Now(),
