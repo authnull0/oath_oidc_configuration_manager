@@ -6,7 +6,7 @@ pipeline {
         GITHUB_BRANCH = 'new'
         DOCKER_REGISTRY = 'docker-repo.authnull.com'
         DOCKER_REGISTRY_CREDENTIALS = credentials('authnull-repo')
-        DOCKER_IMAGE = 'docker-repo.authnull.com/oath-service:latest'
+        DOCKER_IMAGE = 'docker-repo.authnull.com/ouath-service:latest'
     }
 
     triggers {
