@@ -3,7 +3,7 @@ pipeline {
 
     environment {
         GITHUB_REPO = 'https://github.com/authsec-ai/authsec-charts.git'
-        GITHUB_BRANCH = 'development-test'
+        GITHUB_BRANCH = 'new'
         DOCKER_REGISTRY = 'docker-repo.authnull.com'
         DOCKER_REGISTRY_CREDENTIALS = credentials('authnull-repo')
         DOCKER_IMAGE = 'docker-repo.authnull.com/oath-service:latest'
