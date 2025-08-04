@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-        GITHUB_REPO = 'https://github.com/authsec-ai/authsec-charts.git'
+        GITHUB_REPO = 'https://github.com/authnull0/oath_oidc_configuration_manager.git'
         GITHUB_BRANCH = 'new'
         DOCKER_REGISTRY = 'docker-repo.authnull.com'
         DOCKER_REGISTRY_CREDENTIALS = credentials('authnull-repo')
