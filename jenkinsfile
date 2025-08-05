@@ -13,6 +13,8 @@ pipeline {
         AZURE_SUBSCRIPTION_ID = credentials('subscriptionId')
         AKS_CLUSTER = 'authnull-v2'
         RESOURCE_GROUP = 'azure-k8s'
+        K8S_NAMESPACE = 'authnull-dev'
+
     }
 
     triggers {
