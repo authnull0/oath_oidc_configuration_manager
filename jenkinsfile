@@ -63,7 +63,7 @@ pipeline {
         }
         stage('Delete Existing Pods') {
             steps {
-                sh "kubectl delete pods -l app=${PREFIX}-${SERVICE_NAME} -n ${K8S_NAMESPACE} --ignore-not-found"
+                sh 'kubectl delete pods -l app=authsec-chart-ooc-manager -n ${K8S_NAMESPACE} --ignore-not-found'
             }
         }
     }       
