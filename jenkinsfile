@@ -7,6 +7,12 @@ pipeline {
         DOCKER_REGISTRY = 'docker-repo.authnull.com'
         DOCKER_REGISTRY_CREDENTIALS = credentials('authnull-repo')
         DOCKER_IMAGE = 'docker-repo.authnull.com/ouath-service:latest'
+        AZURE_CLIENT_ID = credentials('clientid')  
+        AZURE_CLIENT_SECRET = credentials('secretid') 
+        AZURE_TENANT_ID = credentials('tenantid')
+        AZURE_SUBSCRIPTION_ID = credentials('subscriptionId')
+        AKS_CLUSTER = 'authnull-v2'
+        RESOURCE_GROUP = 'azure-k8s'
     }
 
     triggers {
@@ -46,5 +52,19 @@ pipeline {
                 sh 'docker rmi ${DOCKER_IMAGE}'
             }
         }
-    }
+        stage('Authenticate to AKS') {
+             steps {
+                sh '''
+                    az login --service-principal -u "$AZURE_CLIENT_ID" -p "$AZURE_CLIENT_SECRET" --tenant "$AZURE_TENANT_ID"
+                    az account set --subscription "$AZURE_SUBSCRIPTION_ID"
+                    az aks get-credentials --resource-group "$RESOURCE_GROUP" --admin --name "$AKS_CLUSTER"
+                '''
+            }
+        }
+        stage('Delete Existing Pods') {
+            steps {
+                sh "kubectl delete pods -l app=${PREFIX}-${SERVICE_NAME} -n ${K8S_NAMESPACE} --ignore-not-found"
+            }
+        }
+    }       
 }
